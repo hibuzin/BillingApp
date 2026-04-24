@@ -1,134 +1,76 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:hibuz_billing/PrintBillPage.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:intl/intl.dart';
 
-class ShowBillPage extends StatefulWidget {
+class PrintBillPage extends StatefulWidget {
   final String billId;
-  final Map billData;
 
-  const ShowBillPage({
-    super.key,
-    required this.billId,
-    required this.billData,
-  });
+  const PrintBillPage({super.key, required this.billId});
 
   @override
-  State<ShowBillPage> createState() => _ShowBillPageState();
+  State<PrintBillPage> createState() => _PrintBillPageState();
 }
 
-class _ShowBillPageState extends State<ShowBillPage> {
-  late Map bill;
+class _PrintBillPageState extends State<PrintBillPage> {
+  Map? data;
+  bool isLoading = true;
+
+  final storage = const FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
-    bill = widget.billData;
+    fetchReceipt();
   }
 
-  final storage = const FlutterSecureStorage();
+  Future<void> fetchReceipt() async {
+    final token = await storage.read(key: "token");
 
-  String? _getProductId(Map item) {
-    return item["productId"]?.toString() ??
-        item["_id"]?.toString() ??
-        item["product"]?.toString() ??
-        item["id"]?.toString();
-  }
-
-  Future<void> updateQty(String? productId, String action) async {
-    if (productId == null || productId.isEmpty) {
-      debugPrint("productId is null or empty — cannot update qty");
-      return;
-    }
-
-    try {
-      final url = Uri.parse(
-          "https://billing-system-y42h.onrender.com/api/retail/bill/update-qty");
-
-      String? token = await storage.read(key: "token");
-
-      debugPrint("TOKEN: $token");
-      debugPrint("productId: $productId | action: $action");
-
-      final response = await http.put(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({
-          "billId": widget.billId,
-          "productId": productId,
-          "action": action,
-        }),
-      );
-
-      debugPrint("STATUS: ${response.statusCode}");
-      debugPrint("BODY: ${response.body}");
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && data["success"] == true) {
-        setState(() {
-          bill = data["data"]["bill"];
-        });
-      } else {
-        debugPrint(" API ERROR: ${data["message"]}");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data["message"] ?? "Update failed"),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint(" ERROR: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Widget _qtyBtn({
-    required IconData icon,
-    VoidCallback? onTap,
-    bool filled = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: filled ? Colors.black87 : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.black.withOpacity(0.2)),
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: filled ? Colors.white : Colors.black87,
-        ),
+    final response = await http.post(
+      Uri.parse(
+        "https://billing-system-y42h.onrender.com/api/retail/bill/print/${widget
+            .billId}",
       ),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
     );
+
+    final res = json.decode(response.body);
+
+    if (response.statusCode == 200 && res["success"] == true) {
+      setState(() {
+        data = res;
+        isLoading = false;
+      });
+    } else {
+      setState(() => isLoading = false);
+    }
   }
+
   @override
   Widget build(BuildContext context) {
-    final items = bill["items"] as List;
-    final total = bill["totalAmount"];
-    final createdAt = DateTime.parse(bill["createdAt"]);
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF6F6F4),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-    final date = DateFormat("dd/MM/yyyy").format(createdAt);
-    final time = DateFormat("hh:mm a").format(createdAt);
+    if (data == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF6F6F4),
+        body: Center(child: Text("Failed to load receipt")),
+      );
+    }
+
+    final bill = data!["bill"];
+    final items = bill["items"];
+    final date = data!["date"];
+    final time = data!["time"];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F4),
@@ -173,9 +115,9 @@ class _ShowBillPageState extends State<ShowBillPage> {
                       ),
                       Expanded(
                         child: Center(
-                          child: Text(
-                            bill["shopName"] ?? "My Shop",
-                            style: const TextStyle(
+                          child: const Text(
+                            "My Shop",
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -186,12 +128,15 @@ class _ShowBillPageState extends State<ShowBillPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text("Invoice No",
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.black.withOpacity(0.5))),
                             Text(
-                              widget.billId.substring(0, 6),
+                              "Invoice No",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.black.withOpacity(0.5),
+                              ),
+                            ),
+                            Text(
+                              bill["_id"].toString().substring(0, 6),
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600),
                             ),
@@ -231,10 +176,9 @@ class _ShowBillPageState extends State<ShowBillPage> {
                           child: Text("Item",
                               style: TextStyle(fontWeight: FontWeight.w600))),
                       Expanded(
-                          flex: 3,
-                          child: Center(
-                              child: Text("Qty",
-                                  style: TextStyle(fontWeight: FontWeight.w600)))),
+                          flex: 1,
+                          child: Text("Qty",
+                              style: TextStyle(fontWeight: FontWeight.w600))),
                       Expanded(
                           flex: 2,
                           child: Text("Price",
@@ -253,7 +197,6 @@ class _ShowBillPageState extends State<ShowBillPage> {
                     physics: const NeverScrollableScrollPhysics(),
                     itemBuilder: (context, index) {
                       final item = items[index];
-                      final productId = _getProductId(item);
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -262,47 +205,30 @@ class _ShowBillPageState extends State<ShowBillPage> {
                             Expanded(
                               flex: 3,
                               child: Text(
-                                item["name"] ?? "-",
+                                item["name"],
                                 style: const TextStyle(fontSize: 13),
                               ),
                             ),
                             Expanded(
-                              flex: 3,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _qtyBtn(
-                                    icon: Icons.remove,
-                                    onTap: item["qty"] > 1
-                                        ? () => updateQty(productId, "dec")
-                                        : null,
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                                    child: Text(
-                                      "${item["qty"]}",
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                  _qtyBtn(
-                                    icon: Icons.add,
-                                    filled: true,
-                                    onTap: () => updateQty(productId, "inc"),
-                                  ),
-                                ],
+                              flex: 1,
+                              child: Text(
+                                "${item["qty"]}",
+                                style: const TextStyle(fontSize: 13),
                               ),
                             ),
                             Expanded(
                               flex: 2,
-                              child: Text("₹${item["price"]}",
-                                  style: const TextStyle(fontSize: 13)),
+                              child: Text(
+                                "₹${item["price"]}",
+                                style: const TextStyle(fontSize: 13),
+                              ),
                             ),
                             Expanded(
                               flex: 2,
                               child: Text(
-                                  "₹${item["price"] * item["qty"]}",
-                                  style: const TextStyle(fontSize: 13)),
+                                "₹${item["price"] * item["qty"]}",
+                                style: const TextStyle(fontSize: 13),
+                              ),
                             ),
                           ],
                         ),
@@ -334,7 +260,7 @@ class _ShowBillPageState extends State<ShowBillPage> {
                     ),
                   ),
                   Text(
-                    "₹$total",
+                    "₹${bill["totalAmount"]}",
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -346,14 +272,11 @@ class _ShowBillPageState extends State<ShowBillPage> {
 
             const SizedBox(height: 20),
 
-            // BUTTON
+            // PRINT BUTTON
             InkWell(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PrintBillPage(billId: widget.billId),
-                  ),
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Printing...")),
                 );
               },
               borderRadius: BorderRadius.circular(12),
