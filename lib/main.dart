@@ -353,7 +353,7 @@ try{
                           color: isSelected
                               ? Colors.black87
                               : Colors.black.withOpacity(0.06),
-                          width: isSelected ? 1.2 : 0.8,
+                          width: isSelected ? 2 : 0.8,
                         ),
                       ),
                       child: Column(
@@ -395,17 +395,14 @@ try{
                             ),
                           ),
                           SizedBox(height: 4,),
-                          Center(
-                            child: SizedBox(
-                              height: 4,
-                              width: 150,
-                              child: Divider(
-                                color: Colors.black,
-                                thickness: 1,
-                                height: 1,
-                              ),
+                          if (isSelected) ...[
+                            const SizedBox(height: 4),
+                            Divider(
+                              color: Colors.black,
+                              thickness: 2,
+                              height: 1,
                             ),
-                          ),
+                          ],
                           Padding(
                             padding: const EdgeInsets.all(10),
                             child: isSelected
@@ -438,7 +435,19 @@ try{
                               width: double.infinity,
                               child: OutlinedButton(
                                 onPressed: () => increaseQty(productId),
-                                child: const Text("Add"),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                    color: Colors.black,
+                                    width: 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(1),
+                                  ),
+                                ),
+                                child: const Text(
+                                  "ADD",
+                                  style: TextStyle(color: Colors.black),
+                                ),
                               ),
                             ),
                           ),
@@ -459,12 +468,12 @@ try{
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
                     color: Colors.black87,
-                    width: 1,
+                    width: 2,
                     ),
                     ),
                     child: const Icon(
                     Icons.check,
-                    color: Colors.black,
+                    color: Colors.red,
                     size: 14,
                     ),
                         ),
