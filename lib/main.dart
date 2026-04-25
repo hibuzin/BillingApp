@@ -4,6 +4,7 @@ import 'package:hibuz_billing/add_product.dart';
 import 'package:http/http.dart' as http;
 import 'showbill.dart';
 import 'myaccount.dart';
+import 'product_notifier.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 void main() {
@@ -51,28 +52,25 @@ class _HomePageState extends State<HomePage> {
 
 
   Future<void> fetchProducts() async {
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
-    final token = await storage.read(key: "token");
-try{
-    final response = await http.get(
-      Uri.parse("https://billing-system-y42h.onrender.com/api/retail/product"),
-      headers: {
-        "Authorization": "Bearer $token",
-      },
-    );
+    try {
+      final token = await storage.read(key: "token");
+
+      final response = await http.get(
+        Uri.parse("https://billing-system-y42h.onrender.com/api/retail/product"),
+        headers: {
+          "Authorization": "Bearer $token",
+        },
+      );
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
 
-        if (decoded is Map && decoded["data"] is List) {
+        if (decoded is Map && decoded["products"] is List) {
           setState(() {
-            products = List.from(decoded["data"]);
-            isLoading = false;
+            products = List.from(decoded["products"]);
           });
-
         } else {
           throw Exception("Invalid data format");
         }
@@ -80,11 +78,11 @@ try{
         throw Exception("Status code: ${response.statusCode}");
       }
     } catch (e) {
-      setState(() => isLoading = false);
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Fetch error: $e")),
       );
+    } finally {
+      setState(() => isLoading = false); // Always runs, success or failure
     }
   }
 
@@ -282,6 +280,7 @@ try{
                   context,
                   MaterialPageRoute(builder: (_) => const MyAccountPage()),
                 ),
+
           ),
         ],
       ),
@@ -308,15 +307,11 @@ try{
 
               return InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  if (cart.containsKey(productId)) {
-                    setState(() {
-                      cart.remove(productId); // deselect
-                    });
-                  } else {
-                    increaseQty(productId); // first select
-                  }
-                },
+                  onTap: () {
+                    if (!cart.containsKey(productId)) {
+                      increaseQty(productId);
+                    }
+                  },
                 onLongPress: () {
                   showDialog(
                     context: context,
@@ -471,11 +466,35 @@ try{
                     width: 2,
                     ),
                     ),
-                    child: const Icon(
-                    Icons.check,
-                    color: Colors.red,
-                    size: 14,
-                    ),
+                      child:
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              cart.remove(productId);
+                            });
+                          },
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(1),
+                              border: Border.all(
+                                color: Colors.black87,
+                                width: 2,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.red,
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                      ),
                         ),
                       ),
                   ],

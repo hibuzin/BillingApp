@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hibuz_billing/login.dart';
-import 'package:hibuz_billing/main.dart';
+import 'package:hibuz_billing/product_list.dart';
 import 'package:hibuz_billing/sales.dart';
+import 'package:hibuz_billing/top_products_page.dart';
 
 class MyAccountPage extends StatelessWidget {
   const MyAccountPage({super.key});
@@ -24,7 +25,7 @@ class MyAccountPage extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // close dialog
+                Navigator.pop(context);
               },
               child: const Text("Cancel"),
             ),
@@ -108,10 +109,22 @@ class MyAccountPage extends StatelessWidget {
             ),
             _row(
               context,
-              label: "Stock Check",
-              onTap: () => Navigator.pushNamed(context, "/stock"),
+              label: "Top Selling",
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const TopProductsPage()),
+              ),
+            ),
+            _row(
+              context,
+              label: "Product List",
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProductListPage()),
+              ),
             ),
           ]),
+
 
           const SizedBox(height: 24),
 
